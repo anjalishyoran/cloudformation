@@ -1,0 +1,87 @@
+Description: >
+  Colexion Cloudformation Template with Nesting.
+
+Resources:
+  VPC:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/colexion-cloudformation-1/infrastructure/vpc.yaml
+      Parameters:
+        EnvironmentName: !Ref AWS::StackName
+        VpcCIDR: 66.0.0.0/16
+        PublicSubnet1CIDR: 66.0.64.0/24
+        PublicSubnet2CIDR: 66.0.192.0/24
+        PrivateSubnet1CIDR: 66.0.1.0/24
+        PrivateSubnet2CIDR: 66.0.128.0/24
+
+  SecurityGroups:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/colexion-cloudformation-1/infrastructure/security-groups.yaml
+      Parameters:
+        EnvironmentName: !Ref AWS::StackName
+        VPC: !GetAtt VPC.Outputs.VPC
+
+  ALB:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/ecs-refarch-cloudformation/infrastructure/load-balancers.yaml
+      Parameters:
+        EnvironmentName: !Ref AWS::StackName
+        VPC: !GetAtt VPC.Outputs.VPC
+        Subnets: !GetAtt VPC.Outputs.PublicSubnets
+        SecurityGroup: !GetAtt SecurityGroups.Outputs.LoadBalancerSecurityGroup
+
+#   ECS:
+#     Type: AWS::CloudFormation::Stack
+#     Properties:
+#       TemplateURL: https://s3.amazonaws.com/ecs-refarch-cloudformation/infrastructure/ecs-cluster.yaml
+#       Parameters:
+#         EnvironmentName: !Ref AWS::StackName
+#         InstanceType: t2.large
+#         ClusterSize: 4
+#         VPC: !GetAtt VPC.Outputs.VPC
+#         SecurityGroup: !GetAtt SecurityGroups.Outputs.ECSHostSecurityGroup
+#         Subnets: !GetAtt VPC.Outputs.PrivateSubnets
+
+#   ProductService:
+#     Type: AWS::CloudFormation::Stack
+#     Properties:
+#       TemplateURL: https://s3.amazonaws.com/ecs-refarch-cloudformation/services/product-service/service.yaml
+#       Parameters:
+#         VPC: !GetAtt VPC.Outputs.VPC
+#         Cluster: !GetAtt ECS.Outputs.Cluster
+#         DesiredCount: 2
+#         Listener: !GetAtt ALB.Outputs.Listener
+#         Path: /products
+
+#   WebsiteService:
+#     Type: AWS::CloudFormation::Stack
+#     Properties:
+#       TemplateURL: https://s3.amazonaws.com/ecs-refarch-cloudformation/services/website-service/service.yaml
+#       Parameters:
+#         VPC: !GetAtt VPC.Outputs.VPC
+#         Cluster: !GetAtt ECS.Outputs.Cluster
+#         DesiredCount: 2
+#         ProductServiceUrl:
+#           !Join ["/", [!GetAtt ALB.Outputs.LoadBalancerUrl, "products"]]
+#         Listener: !GetAtt ALB.Outputs.Listener
+#         Path: /
+#         ECSServiceAutoScalingRoleARN: !GetAtt ECS.Outputs.ECSServiceAutoScalingRole
+
+#   LifecycleHook:
+#     Type: AWS::CloudFormation::Stack
+#     Properties:
+#       TemplateURL: https://s3.amazonaws.com/ecs-refarch-cloudformation/infrastructure/lifecyclehook.yaml
+#       Parameters:
+#         Cluster: !GetAtt ECS.Outputs.Cluster
+#         ECSAutoScalingGroupName: !GetAtt ECS.Outputs.ECSAutoScalingGroupName
+
+# Outputs:
+#   ProductServiceUrl:
+#     Description: The URL endpoint for the product service
+#     Value: !Join ["/", [!GetAtt ALB.Outputs.LoadBalancerUrl, "products"]]
+
+#   WebsiteServiceUrl:
+#     Description: The URL endpoint for the website service
+#     Value: !Join ["", [!GetAtt ALB.Outputs.LoadBalancerUrl, "/"]]
